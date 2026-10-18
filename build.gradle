@@ -2,7 +2,7 @@ plugins {
     id 'net.fabricmc.fabric-loom' version "${loom_version}"
 }
 
-version = (System.getenv('BITCROW_VERSION') ?: '1.0.0').replaceFirst('^v', '')
+version = project.mod_version
 group = 'org.bitcrow'
 
 dependencies {

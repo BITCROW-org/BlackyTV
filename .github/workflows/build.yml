@@ -3,13 +3,8 @@ name: build
 on:
   push:
     branches: [main, master]
-    tags: ['v*']
   pull_request:
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release version (e.g. 1.2.0), empty = build only'
-        required: false
 
 permissions:
   contents: write
@@ -17,10 +12,23 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      BITCROW_VERSION: ${{ inputs.version || (startsWith(github.ref, 'refs/tags/v') && github.ref_name) || '' }}
     steps:
       - uses: actions/checkout@v5
+
+      - name: Read version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(grep '^mod_version=' gradle.properties | cut -d= -f2 | tr -d '[:space:]')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+            echo "Release v$VERSION gibt es schon, es wird nur gebaut"
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+            echo "Neue Version v$VERSION, Release wird erstellt"
+          fi
 
       - uses: actions/setup-java@v5
         with:
@@ -43,17 +51,17 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: BlackyTV
+          name: BlackyTV-${{ steps.version.outputs.version }}
           path: |
             build/libs/*.jar
             relay/BlackyTVRelay.java
 
       - name: Release
-        if: inputs.version != '' || startsWith(github.ref, 'refs/tags/v')
+        if: steps.version.outputs.new == 'true' && github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.version && format('v{0}', inputs.version) || github.ref_name }}
-          name: BlackyTV ${{ inputs.version || github.ref_name }}
+          tag_name: v${{ steps.version.outputs.version }}
+          name: BlackyTV ${{ steps.version.outputs.version }}
           target_commitish: ${{ github.sha }}
           make_latest: true
           generate_release_notes: true
