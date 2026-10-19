@@ -10,7 +10,7 @@
 ![Minecraft](https://img.shields.io/badge/Minecraft-26.2-green)
 ![Fabric](https://img.shields.io/badge/Loader-Fabric-dbd0b4)
 
-[Download](https://github.com/BITCROW-org/BlackyTV/releases/latest) · [Anleitung](ANLEITUNG.md) · [Relay-Server](#-relay-server) · [Bauen](#-selbst-bauen)
+[Download](https://github.com/BITCROW-org/BlackyTV/releases/latest) · [Verbinden](VERBINDEN.md) · [Anleitung](ANLEITUNG.md) · [Relay-Server](#-relay-server) · [Bauen](#-selbst-bauen)
 
 </div>
 
@@ -47,6 +47,8 @@ Jeder, der zuschauen will, braucht die Mod. Ohne Mod sieht man nur ein Schild.
 ---
 
 ## 🚀 Schnellstart
+
+Relay aufsetzen und alles Schritt für Schritt verbinden: **[VERBINDEN.md](VERBINDEN.md)**
 
 **1. Fernseher aufstellen.** Ein Schild beschriften mit:
 

@@ -7,6 +7,8 @@ BlackyTV baut Fernseher in Minecraft, wie beim LabyMod-WorldCup-Addon. Drauf lä
 - **Streamen** geht nur auf Windows 10 (ab Version 2004) / Windows 11
 - **Zuschauen** geht überall
 
+> Nur schnell verbinden? Die Kurzfassung steht in **[VERBINDEN.md](VERBINDEN.md)**.
+
 ---
 
 ## Inhalt
