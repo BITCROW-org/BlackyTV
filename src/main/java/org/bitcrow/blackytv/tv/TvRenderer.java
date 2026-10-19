@@ -6,6 +6,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import org.bitcrow.blackytv.BlackyTV;
 import org.bitcrow.blackytv.capture.Frame;
 import org.bitcrow.blackytv.capture.ScreenCapture;
+import org.bitcrow.blackytv.control.ControlState;
 import org.bitcrow.blackytv.stream.StreamReceiver;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
@@ -21,10 +22,11 @@ import java.util.Map;
 
 public final class TvRenderer {
 
-    private static final double DEPTH_BEHIND_SIGN = 0.55;
     private static final double BACKGROUND_OFFSET = 0.01;
     private static final int BLACK = 0xFF000000;
     private static final int WHITE = 0xFFFFFFFF;
+    private static final int POINTER = 0xFFFF3B3B;
+    private static final double POINTER_LIFT = 0.03;
 
     private static final class Screen {
         final Identifier id;
@@ -72,44 +74,58 @@ public final class TvRenderer {
         return texture;
     }
 
+    public static float aspect(String feed) {
+        Screen screen = SCREENS.get(feed);
+        return screen == null || screen.shown == null ? 0 : screen.aspect;
+    }
+
     public static void render(LevelRenderContext context) {
         Vec3 camera = context.levelState().cameraRenderState.pos;
+        ControlState.Pointer pointer = ControlState.pointer();
         for (Tv tv : TvTracker.all()) {
             Screen screen = SCREENS.get(tv.feed());
-            if (screen != null && screen.texture != null) render(context, camera, tv, screen);
+            if (screen == null || screen.texture == null) continue;
+            TvGeometry geometry = TvGeometry.of(tv, screen.aspect);
+            render(context, camera, geometry, screen);
+            if (pointer != null && pointer.tv().equals(tv) && screen.shown != null)
+                renderPointer(context, camera, geometry, pointer);
         }
     }
 
-    private static void render(LevelRenderContext context, Vec3 camera, Tv tv, Screen screen) {
-        float aspect = screen.aspect;
+    private static void render(LevelRenderContext context, Vec3 camera, TvGeometry g, Screen screen) {
         boolean hasVideo = screen.shown != null;
+        double cx = g.centerX() - camera.x, cz = g.centerZ() - camera.z;
+        double top = g.top() - camera.y, videoTop = g.videoTop() - camera.y;
 
-        double yaw = Math.toRadians(tv.yaw());
-        double frontX = -Math.sin(yaw), frontZ = Math.cos(yaw);
-        double rightX = -frontZ, rightZ = frontX;
-
-        float width = tv.width(), height = tv.height();
-        if (width <= 0) width = height * aspect;
-        if (height <= 0) height = width / aspect;
-
-        Vec3 o = tv.offset();
-        double centerX = tv.pos().getX() + 0.5 - frontX * (DEPTH_BEHIND_SIGN + o.z) + rightX * o.x - camera.x;
-        double centerZ = tv.pos().getZ() + 0.5 - frontZ * (DEPTH_BEHIND_SIGN + o.z) + rightZ * o.x - camera.z;
-        double top = tv.pos().getY() + o.y - camera.y;
-
-        float videoWidth = width, videoHeight = width / aspect;
-        if (videoHeight > height) {
-            videoHeight = height;
-            videoWidth = height * aspect;
-        }
-        double videoTop = top - (height - videoHeight) / 2;
-
-        Quad background = new Quad(centerX + frontX * BACKGROUND_OFFSET, top, centerZ + frontZ * BACKGROUND_OFFSET, rightX, rightZ, width, height, BLACK);
-        Quad video = new Quad(centerX, videoTop, centerZ, rightX, rightZ, videoWidth, videoHeight, WHITE);
+        Quad background = new Quad(cx + g.frontX() * BACKGROUND_OFFSET, top, cz + g.frontZ() * BACKGROUND_OFFSET,
+                g.rightX(), g.rightZ(), (float) g.width(), (float) g.height(), BLACK);
+        Quad video = new Quad(cx, videoTop, cz, g.rightX(), g.rightZ(), (float) g.videoWidth(), (float) g.videoHeight(), WHITE);
 
         context.submitNodeCollector().submitCustomGeometry(context.poseStack(), RenderTypes.text(screen.id), (pose, buffer) -> {
             background.draw(pose, buffer);
             if (hasVideo) video.draw(pose, buffer);
+        });
+    }
+
+    private static void renderPointer(LevelRenderContext context, Vec3 camera, TvGeometry g, ControlState.Pointer pointer) {
+        double[] p = g.pointAt(pointer.u(), pointer.v());
+        double side = Math.signum((camera.x - g.centerX()) * g.frontX() + (camera.z - g.centerZ()) * g.frontZ());
+        double size = Math.max(0.04, g.videoWidth() / 120);
+        double x = p[0] - camera.x + g.frontX() * side * POINTER_LIFT, y = p[1] - camera.y, z = p[2] - camera.z + g.frontZ() * side * POINTER_LIFT;
+        float l = (float) size;
+        float x0 = (float) (x - g.rightX() * l), z0 = (float) (z - g.rightZ() * l);
+        float x1 = (float) (x + g.rightX() * l), z1 = (float) (z + g.rightZ() * l);
+        float y0 = (float) (y - l), y1 = (float) (y + l);
+
+        context.submitNodeCollector().submitCustomGeometry(context.poseStack(), RenderTypes.debugFilledBox(), (pose, buffer) -> {
+            buffer.addVertex(pose, x0, y1, z0).setColor(POINTER);
+            buffer.addVertex(pose, x0, y0, z0).setColor(POINTER);
+            buffer.addVertex(pose, x1, y0, z1).setColor(POINTER);
+            buffer.addVertex(pose, x1, y1, z1).setColor(POINTER);
+            buffer.addVertex(pose, x1, y1, z1).setColor(POINTER);
+            buffer.addVertex(pose, x1, y0, z1).setColor(POINTER);
+            buffer.addVertex(pose, x0, y0, z0).setColor(POINTER);
+            buffer.addVertex(pose, x0, y1, z0).setColor(POINTER);
         });
     }
 

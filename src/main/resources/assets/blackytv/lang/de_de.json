@@ -28,5 +28,16 @@
   "blackytv.command.stopped": "Stream aus",
   "blackytv.command.relay": "Relay: %s",
   "blackytv.command.volume": "Lautstärke der Fernseher: %s",
-  "blackytv.command.stream_volume": "Ton beim Streamen: %s"
+  "blackytv.command.stream_volume": "Ton beim Streamen: %s",
+  "key.blackytv.control": "Fernseher-Fenster steuern",
+  "blackytv.menu.control": "Fenster steuern (G)",
+  "blackytv.menu.cursor.on": "Zeiger im Stream: AN",
+  "blackytv.menu.cursor.off": "Zeiger im Stream: AUS",
+  "blackytv.control.title": "Steuer-Modus",
+  "blackytv.control.hint": "Steuer-Modus – Esc beendet, Shift+Esc schickt Esc",
+  "blackytv.control.no_tv": "Zeig auf einen Fernseher mit deinem Fenster",
+  "blackytv.control.no_window": "Steuern geht nur mit einem Fenster als Quelle (N drücken)",
+  "blackytv.control.not_supported": "Steuern geht nur unter Windows",
+  "blackytv.control.blocked": "Das Fenster nimmt keine Eingaben an (läuft es als Admin?)",
+  "blackytv.control.closed": "Fenster weg, Steuer-Modus beendet"
 }

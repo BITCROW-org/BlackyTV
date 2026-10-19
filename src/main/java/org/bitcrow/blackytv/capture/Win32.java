@@ -4,7 +4,7 @@ import com.sun.jna.Function;
 import com.sun.jna.NativeLibrary;
 import com.sun.jna.Pointer;
 
-final class Win32 {
+public final class Win32 {
 
     static final int GWL_EXSTYLE = -20;
     static final int SRCCOPY = 0x00CC0020;
@@ -16,31 +16,31 @@ final class Win32 {
     private Win32() {
     }
 
-    static boolean isWindows() {
+    public static boolean isWindows() {
         return System.getProperty("os.name").startsWith("Windows");
     }
 
-    static Function function(String library, String name) {
+    public static Function function(String library, String name) {
         return NativeLibrary.getInstance(library).getFunction(name);
     }
 
-    static int user32(String name, Object... args) {
+    public static int user32(String name, Object... args) {
         return function("user32", name).invokeInt(args);
     }
 
-    static long user32Long(String name, Object... args) {
+    public static long user32Long(String name, Object... args) {
         return function("user32", name).invokeLong(args);
     }
 
-    static Pointer user32Pointer(String name, Object... args) {
+    public static Pointer user32Pointer(String name, Object... args) {
         return function("user32", name).invokePointer(args);
     }
 
-    static int gdi32(String name, Object... args) {
+    public static int gdi32(String name, Object... args) {
         return function("gdi32", name).invokeInt(args);
     }
 
-    static Pointer gdi32Pointer(String name, Object... args) {
+    public static Pointer gdi32Pointer(String name, Object... args) {
         return function("gdi32", name).invokePointer(args);
     }
 }

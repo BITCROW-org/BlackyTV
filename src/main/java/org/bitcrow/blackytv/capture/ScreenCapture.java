@@ -6,6 +6,8 @@ import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
 import org.bitcrow.blackytv.config.Settings;
+import org.bitcrow.blackytv.control.ControlState;
+import org.bitcrow.blackytv.control.CursorOverlay;
 import org.bitcrow.blackytv.stream.StreamSender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +24,7 @@ public final class ScreenCapture {
     private static final int WS_EX_TOOLWINDOW = 0x80;
     private static final int DWMWA_CLOAKED = 14;
     private static final int SW_SHOW_NO_ACTIVATE = 4;
-    private static final int COLOR_ON_COLOR = 3;
+    private static final int HALFTONE = 4;
 
     private static volatile CaptureSource source;
     private static volatile Frame frame;
@@ -153,21 +155,22 @@ public final class ScreenCapture {
                         user32("SetWindowPos", s.hwnd(), HWND_BOTTOM, 0, 0, 0, 0, SWP_NO_SIZE_MOVE_ACTIVATE);
                     return null;
                 }
-                Memory rect = new Memory(16);
-                user32("GetWindowRect", s.hwnd(), rect);
-                sw = rect.getInt(8) - rect.getInt(0);
-                sh = rect.getInt(12) - rect.getInt(4);
-                if (sw <= 0 || sh <= 0) return null;
-                if (windowDc == null || windowWidth != sw || windowHeight != sh) {
+                ClientArea area = ClientArea.of(s.hwnd());
+                if (area == null) return null;
+                if (windowDc == null || windowWidth != area.windowWidth() || windowHeight != area.windowHeight()) {
                     free(windowDc, windowBitmap);
                     windowDc = gdi32Pointer("CreateCompatibleDC", screen);
-                    windowBitmap = gdi32Pointer("CreateCompatibleBitmap", screen, sw, sh);
+                    windowBitmap = gdi32Pointer("CreateCompatibleBitmap", screen, area.windowWidth(), area.windowHeight());
                     gdi32Pointer("SelectObject", windowDc, windowBitmap);
-                    windowWidth = sw;
-                    windowHeight = sh;
+                    windowWidth = area.windowWidth();
+                    windowHeight = area.windowHeight();
                 }
                 if (user32("PrintWindow", s.hwnd(), windowDc, 2) == 0) return null;
                 from = windowDc;
+                sx = area.offsetX();
+                sy = area.offsetY();
+                sw = area.width();
+                sh = area.height();
             } else {
                 from = screen;
                 sx = s.x();
@@ -184,7 +187,11 @@ public final class ScreenCapture {
             else gdi32("StretchBlt", outDc, 0, 0, w, h, from, sx, sy, sw, sh, SRCCOPY);
             gdi32("GdiFlush");
 
-            return Frame.of(outPixels.getIntArray(0, w * h), w, h);
+            int[] pixels = outPixels.getIntArray(0, w * h);
+            ControlState.Pointer pointer = ControlState.pointer();
+            if (pointer != null && Settings.showCursor && StreamSender.isSending())
+                CursorOverlay.draw(pixels, w, h, pointer.u(), pointer.v());
+            return Frame.fromArgb(pixels, w, h);
         } finally {
             user32("ReleaseDC", null, screen);
         }
@@ -204,7 +211,8 @@ public final class ScreenCapture {
         outBitmap = gdi32Pointer("CreateDIBSection", outDc, info, 0, pixels, null, 0);
         outPixels = pixels.getValue();
         gdi32Pointer("SelectObject", outDc, outBitmap);
-        gdi32("SetStretchBltMode", outDc, COLOR_ON_COLOR);
+        gdi32("SetStretchBltMode", outDc, HALFTONE);
+        gdi32("SetBrushOrgEx", outDc, 0, 0, null);
         outWidth = w;
         outHeight = h;
     }

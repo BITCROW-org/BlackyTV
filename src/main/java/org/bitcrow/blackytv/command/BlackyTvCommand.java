@@ -46,7 +46,8 @@ public final class BlackyTvCommand {
     }
 
     public static Component message(Component text) {
-        return Component.literal("BlackyTV").withStyle(ChatFormatting.BLUE, ChatFormatting.BOLD)
+        return Component.empty()
+                .append(Component.literal("BlackyTV").withStyle(ChatFormatting.BLUE, ChatFormatting.BOLD))
                 .append(Component.literal(" | ").withStyle(ChatFormatting.GRAY))
                 .append(text);
     }

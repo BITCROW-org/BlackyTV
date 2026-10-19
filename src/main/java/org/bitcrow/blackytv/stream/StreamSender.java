@@ -10,6 +10,7 @@ import javax.imageio.ImageWriteParam;
 import javax.imageio.ImageWriter;
 import javax.imageio.stream.ImageOutputStream;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferInt;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -19,25 +20,24 @@ import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public final class StreamSender {
 
     public enum Status { IDLE, SENDING, WRONG_PASSWORD, TOO_LARGE, RELAY_ERROR, UNREACHABLE }
 
     private static final float JPEG_QUALITY = 0.8f;
-    private static final int AUDIO_BATCH = 5;
-    private static final int MAX_QUEUED_AUDIO = 10;
+    private static final int AUDIO_BATCH = 2;
+    private static final long RETRY_MS = 2_000;
 
-    private static final ExecutorService VIDEO_OUT = Executors.newSingleThreadExecutor(r -> daemon(r, "BlackyTV-SendVideo"));
-    private static final ExecutorService AUDIO_OUT = Executors.newSingleThreadExecutor(r -> daemon(r, "BlackyTV-SendAudio"));
-    private static final AtomicBoolean videoBusy = new AtomicBoolean();
-    private static final AtomicInteger audioQueued = new AtomicInteger();
+    private static final ExecutorService ENCODER = Executors.newSingleThreadExecutor(r -> daemon(r, "BlackyTV-Encode"));
+    private static final AtomicBoolean encoding = new AtomicBoolean();
     private static final ByteArrayOutputStream audioBuffer = new ByteArrayOutputStream();
 
     private static volatile boolean sending;
     private static volatile Status status = Status.IDLE;
     private static volatile int lastResponseCode;
+    private static volatile UploadStream upload;
+    private static volatile Thread connection;
 
     private StreamSender() {
     }
@@ -62,36 +62,32 @@ public final class StreamSender {
         return !Settings.channel.isEmpty() && !Settings.password.isEmpty();
     }
 
-    public static void start() {
+    public static synchronized void start() {
+        if (sending) return;
         sending = true;
         status = Status.SENDING;
+        connection = daemon(StreamSender::connect, "BlackyTV-Send");
+        connection.start();
     }
 
-    public static void stop() {
+    public static synchronized void stop() {
         if (!sending) return;
         sending = false;
         status = Status.IDLE;
-        Http.CLIENT.sendAsync(request("push").DELETE().build(), HttpResponse.BodyHandlers.discarding());
+        UploadStream u = upload;
+        if (u != null) u.close();
+        else connection.interrupt();
     }
 
     public static void pushVideo(Frame frame) {
-        if (!videoBusy.compareAndSet(false, true)) return;
-        VIDEO_OUT.execute(() -> {
+        if (upload == null || !encoding.compareAndSet(false, true)) return;
+        ENCODER.execute(() -> {
             try {
-                HttpResponse<Void> response = Http.CLIENT.send(
-                        request("push").POST(HttpRequest.BodyPublishers.ofByteArray(jpeg(frame))).build(),
-                        HttpResponse.BodyHandlers.discarding());
-                lastResponseCode = response.statusCode();
-                status = switch (response.statusCode()) {
-                    case 204 -> Status.SENDING;
-                    case 403 -> Status.WRONG_PASSWORD;
-                    case 413 -> Status.TOO_LARGE;
-                    default -> Status.RELAY_ERROR;
-                };
-            } catch (Exception e) {
-                status = Status.UNREACHABLE;
+                UploadStream u = upload;
+                if (u != null) u.video(jpeg(frame));
+            } catch (IOException ignored) {
             } finally {
-                videoBusy.set(false);
+                encoding.set(false);
             }
         });
     }
@@ -102,28 +98,69 @@ public final class StreamSender {
         if (audioBuffer.size() < Pcm.FRAME_BYTES * AUDIO_BATCH) return;
         byte[] batch = audioBuffer.toByteArray();
         audioBuffer.reset();
-        if (audioQueued.get() > MAX_QUEUED_AUDIO) return;
-        audioQueued.incrementAndGet();
-        AUDIO_OUT.execute(() -> {
-            try {
-                Http.CLIENT.send(request("audio").POST(HttpRequest.BodyPublishers.ofByteArray(batch)).build(),
-                        HttpResponse.BodyHandlers.discarding());
-            } catch (Exception ignored) {
-            } finally {
-                audioQueued.decrementAndGet();
-            }
-        });
+        UploadStream u = upload;
+        if (u != null) u.audio(batch);
     }
 
-    private static HttpRequest.Builder request(String kind) {
-        return HttpRequest.newBuilder(URI.create(Settings.relay + "/" + kind + "/" + Settings.channel))
-                .timeout(Duration.ofSeconds(3))
-                .header("X-Key", Settings.password);
+    private static void connect() {
+        String base = Settings.relay + "/%s/" + Settings.channel;
+        String key = Settings.password;
+        UploadStream mine = null;
+        try {
+            while (isCurrent()) {
+                try {
+                    int claim = Http.CLIENT.send(HttpRequest.newBuilder(URI.create(base.formatted("claim")))
+                            .timeout(Duration.ofSeconds(5)).header("X-Key", key)
+                            .POST(HttpRequest.BodyPublishers.noBody()).build(),
+                            HttpResponse.BodyHandlers.discarding()).statusCode();
+                    lastResponseCode = claim;
+                    if (claim != 204) {
+                        status = claim == 403 ? Status.WRONG_PASSWORD : Status.RELAY_ERROR;
+                        Thread.sleep(RETRY_MS * 3);
+                        continue;
+                    }
+                    status = Status.SENDING;
+                    UploadStream u = mine = new UploadStream();
+                    synchronized (StreamSender.class) {
+                        if (!isCurrent()) break;
+                        upload = u;
+                    }
+                    int code = Http.CLIENT.send(HttpRequest.newBuilder(URI.create(base.formatted("live")))
+                            .header("X-Key", key)
+                            .POST(HttpRequest.BodyPublishers.ofInputStream(() -> u)).build(),
+                            HttpResponse.BodyHandlers.discarding()).statusCode();
+                    release(u);
+                    if (!isCurrent()) break;
+                    lastResponseCode = code;
+                    status = code == 403 ? Status.WRONG_PASSWORD : Status.RELAY_ERROR;
+                    Thread.sleep(RETRY_MS);
+                } catch (IOException e) {
+                    release(mine);
+                    if (!isCurrent()) break;
+                    status = Status.UNREACHABLE;
+                    Thread.sleep(RETRY_MS);
+                }
+            }
+        } catch (InterruptedException ignored) {
+        } finally {
+            release(mine);
+        }
+    }
+
+    private static boolean isCurrent() {
+        return sending && connection == Thread.currentThread();
+    }
+
+    private static synchronized void release(UploadStream u) {
+        if (u == null) return;
+        u.close();
+        if (upload == u) upload = null;
     }
 
     static byte[] jpeg(Frame frame) throws IOException {
-        BufferedImage image = new BufferedImage(frame.width(), frame.height(), BufferedImage.TYPE_INT_RGB);
-        image.setRGB(0, 0, frame.width(), frame.height(), frame.argb(), 0, frame.width());
+        BufferedImage image = new BufferedImage(frame.width(), frame.height(), BufferedImage.TYPE_INT_BGR);
+        int[] target = ((DataBufferInt) image.getRaster().getDataBuffer()).getData();
+        System.arraycopy(frame.abgr(), 0, target, 0, target.length);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         ImageWriter writer = ImageIO.getImageWritersByFormatName("jpeg").next();
         try (ImageOutputStream stream = ImageIO.createImageOutputStream(out)) {

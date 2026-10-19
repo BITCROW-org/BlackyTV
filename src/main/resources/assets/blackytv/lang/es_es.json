@@ -28,5 +28,16 @@
   "blackytv.command.stopped": "Emisión detenida",
   "blackytv.command.relay": "Relay: %s",
   "blackytv.command.volume": "Volumen de las TV: %s",
-  "blackytv.command.stream_volume": "Volumen del stream: %s"
+  "blackytv.command.stream_volume": "Volumen del stream: %s",
+  "key.blackytv.control": "Controlar la ventana de la TV",
+  "blackytv.menu.control": "Controlar ventana (G)",
+  "blackytv.menu.cursor.on": "Cursor en el stream: SÍ",
+  "blackytv.menu.cursor.off": "Cursor en el stream: NO",
+  "blackytv.control.title": "Modo control",
+  "blackytv.control.hint": "Modo control – Esc para salir, Mayús+Esc envía Esc",
+  "blackytv.control.no_tv": "Apunta a una TV que muestre tu ventana",
+  "blackytv.control.no_window": "El control solo funciona con una ventana como fuente (pulsa N)",
+  "blackytv.control.not_supported": "El control solo funciona en Windows",
+  "blackytv.control.blocked": "La ventana ignora la entrada (¿se ejecuta como admin?)",
+  "blackytv.control.closed": "La ventana ya no está, modo control terminado"
 }

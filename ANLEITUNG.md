@@ -81,9 +81,14 @@ java BlackyTVRelay.java 9000
 
 Wenn's läuft, steht da:
 ```
-0 kanaele vergeben
-BlackyTV Relay laeuft auf port 8765
+BlackyTV Relay laeuft auf Port 8765 (0 Kanaele vergeben)
 ```
+
+### Verbindung
+Streamer und Zuschauer haben je **eine offene Verbindung** zum Relay, über die Bild und Ton laufen. Es wird nicht für jedes Bild neu gefragt. Hängt ein Zuschauer hinterher, bekommt er direkt das neueste Bild statt alter Bilder. Ist 15 Sekunden nichts gekommen, baut die Mod die Verbindung selbst neu auf.
+
+### Relay aktualisieren
+Ab Mod **1.1.0** braucht es auch den neuen Relay: `BlackyTVRelay.java` ersetzen und neu starten. Die Datei `blackytv-kanaele.properties` bleibt liegen, alle Kanäle und Passwörter bleiben also erhalten. Der neue Relay versteht auch noch die alten Mods (1.0.x), du kannst also in Ruhe alle umstellen.
 
 ### Port freigeben
 Der Port (TCP 8765) muss von außen erreichbar sein:
@@ -217,6 +222,24 @@ Das Fenster wird **automatisch wieder normal**, wenn:
 
 Bei normalen Programmen wie VLC oder Spielen brauchst du den Schalter meistens nicht.
 
+### Fenster im Spiel steuern
+Als Streamer kannst du dein Fenster direkt über den Fernseher bedienen: klicken, scrollen, ziehen und tippen, ohne Minecraft zu verlassen.
+
+1. **`G`** drücken (oder im N-Menü **Fenster steuern**). Deine Figur bleibt stehen, und ein Mauszeiger erscheint.
+2. Mit der Maus auf den Fernseher zeigen. Ein **roter Punkt** zeigt, wo du gerade bist.
+3. **Linksklick, Rechtsklick, Mittelklick, Mausrad und Ziehen** gehen ans Fenster.
+4. **Tippen** geht ans Fenster, Umlaute inklusive. Dazu Enter, Backspace, Entf, Tab, Pfeile, Pos1, Ende, Bild auf/ab und F1–F12.
+5. **`Esc`** beendet den Steuer-Modus. Willst du `Esc` ans Fenster schicken: **`Shift+Esc`**.
+
+Gut zu wissen:
+- **Nur du** steuerst, und zwar nur auf deinem PC. Zuschauer können nichts klicken, und über den Relay geht keine Eingabe.
+- Geht bei Fernsehern, die deine Quelle zeigen: Schilder ohne `ch:` und Schilder mit deinem Kanal, während du sendest.
+- Geht nur mit einem **Fenster** als Quelle, nicht mit einem Monitor.
+- Deine echte Maus bewegt sich dabei nicht.
+- **Zeiger im Stream** (N-Menü): Während du sendest, sehen die Zuschauer einen Mauszeiger im Bild, damit sie wissen, wo du klickst. Abschaltbar.
+- Tastenkürzel mit **Strg** (z. B. Strg+C, Strg+V) werden versucht, klappen aber nicht in jeder App.
+- **Spiele** und Programme, die als **Administrator** laufen, nehmen solche Eingaben meistens nicht an.
+
 ---
 
 ## 6. Kanäle und Passwörter
@@ -276,6 +299,7 @@ Deinen **eigenen** Stream hörst du nicht doppelt. Der wird bei dir stumm gescha
 | Lautstärke beim Streamen (für alle) | `/blackytv streamvolume <0-200>` oder `/blackytv streamton <0-200>` |
 | Senden starten | `/blackytv stream <kanal> <passwort>` |
 | Senden stoppen | `/blackytv stop` |
+| Fenster steuern | **`G`** (änderbar), beenden mit `Esc`, `Shift+Esc` schickt `Esc` ans Fenster |
 | Relay starten (Server) | `java BlackyTVRelay.java [port]` |
 
 ---
@@ -297,6 +321,7 @@ Liegt bei jedem Spieler in `.minecraft/config/blackytv.properties`:
 | `channel` | letzter Kanal zum Senden |
 | `key` | letztes Passwort zum Senden |
 | `awake` | Fenster wach halten an/aus |
+| `cursor` | Zeiger im Stream an/aus |
 | `maxw` | Qualität (Breite in Pixeln) |
 | `volume` | Lautstärke der Fernseher in % (Hören) |
 | `sendVolume` | Lautstärke beim Streamen in % (Stream-Ton) |
@@ -309,7 +334,13 @@ Für Zuschauer reicht es, wenn `relay` stimmt. Alternativ kommt `@host:port` dir
 
 | Problem | Lösung |
 |---|---|
+| `G` macht nichts / „nur mit einem Fenster“ | Im N-Menü ein **Fenster** als Quelle wählen, kein Monitor |
+| Steuer-Modus an, aber kein roter Punkt | Auf einen Fernseher zeigen, der **dein** Fenster zeigt (ohne `ch:` oder mit deinem Kanal beim Senden) |
+| Klick landet daneben | Melde es mit deiner Windows-Skalierung (100 %, 125 %, 150 %). Kurz testweise auf 100 % stellen hilft beim Eingrenzen. |
+| „Fenster nimmt keine Eingaben an“ | Läuft das Programm als Administrator? Dann normal starten. Spiele unterstützen das oft gar nicht. |
+| Tippen kommt nicht an | Erst einmal ins Textfeld **klicken**, dann tippen |
 | Fernseher bleibt schwarz | Steht der Kanal richtig auf dem Schild (`ch:kino`)? Streamt gerade jemand? Ist der Relay erreichbar? |
+| „Relay-Fehler 404“ beim Senden | Der Relay ist noch alt. Neue `BlackyTVRelay.java` hochladen und neu starten ([Relay aktualisieren](#relay-aktualisieren)) |
 | „Relay nicht erreichbar“ | IP/Port mit `/blackytv relay` prüfen, Port freigegeben? Relay gestartet? |
 | „Kanal gehört wem anders / falsches Passwort“ | Anderen Kanalnamen nehmen oder das richtige Passwort. Notfalls Zeile in `blackytv-kanaele.properties` löschen. |
 | Bild bleibt stehen, sobald was über dem Fenster liegt | Im N-Menü **Wach halten** anmachen (Browser/Discord malen sonst nicht weiter) |

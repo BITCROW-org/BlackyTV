@@ -3,6 +3,7 @@ package org.bitcrow.blackytv.gui;
 import org.bitcrow.blackytv.capture.CaptureSource;
 import org.bitcrow.blackytv.capture.ScreenCapture;
 import org.bitcrow.blackytv.config.Settings;
+import org.bitcrow.blackytv.control.ControlScreen;
 import org.bitcrow.blackytv.stream.StreamSender;
 import org.bitcrow.blackytv.tv.TvTracker;
 import net.minecraft.ChatFormatting;
@@ -38,7 +39,7 @@ public class TvScreen extends Screen {
     @Override
     protected void init() {
         if (sources == null) sources = ScreenCapture.list();
-        perPage = Math.max(3, (height - TOP - 108) / ROW);
+        perPage = Math.max(3, (height - TOP - 132) / ROW);
         int pages = Math.max(1, (sources.size() + perPage - 1) / perPage);
         page = Math.min(page, pages - 1);
         int x = (width - WIDTH) / 2;
@@ -64,6 +65,13 @@ public class TvScreen extends Screen {
                 () -> Settings.volume, v -> Settings.volume = v, x + WIDTH - 2 * SMALL - 4, y, SMALL));
         addRenderableWidget(cycle(tr("menu.quality", Settings.quality), QUALITY_STEPS,
                 () -> Settings.quality, v -> Settings.quality = v, x + WIDTH - SMALL, y, SMALL));
+
+        y += 24;
+        CaptureSource current = ScreenCapture.source();
+        addRenderableWidget(Button.builder(tr("menu.control"), b -> ControlScreen.open(minecraft))
+                .bounds(x, y, WIDTH / 2 - 2, 20).build()).active = current != null && current.isWindow();
+        Component cursor = Settings.showCursor ? tr("menu.cursor.on").withStyle(ChatFormatting.GREEN) : tr("menu.cursor.off");
+        addRenderableWidget(button(cursor, () -> Settings.showCursor = !Settings.showCursor, x + WIDTH / 2 + 2, y, WIDTH / 2 - 2));
     }
 
     private void addSourceButtons(int x) {

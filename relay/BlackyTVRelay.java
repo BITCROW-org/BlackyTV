@@ -1,7 +1,12 @@
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
@@ -13,6 +18,7 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HexFormat;
 import java.util.List;
@@ -28,20 +34,73 @@ public class BlackyTVRelay {
     private static final int MIN_KEY_LENGTH = 4;
     private static final int AUDIO_HISTORY = 20;
     private static final long POLL_TIMEOUT_MS = 10_000;
+    private static final long PING_INTERVAL_MS = 5_000;
     private static final long STALE_MS = 15_000;
     private static final String CHANNEL_PATTERN = "[a-z0-9_-]{1,32}";
     private static final Path CLAIMS_FILE = Path.of("blackytv-kanaele.properties");
 
-    private record Frame(long sequence, byte[] jpeg, long receivedAt) {
+    private static final byte TYPE_VIDEO = 1;
+    private static final byte TYPE_AUDIO = 2;
+    private static final byte TYPE_PING = 3;
+
+    private record Frame(long sequence, byte[] jpeg) {
     }
 
     private record AudioChunk(long sequence, byte[] pcm) {
     }
 
-    private static final Map<String, Frame> frames = new ConcurrentHashMap<>();
-    private static final Map<String, Deque<AudioChunk>> audio = new ConcurrentHashMap<>();
+    private static final class Channel {
+        private Frame frame;
+        private final Deque<AudioChunk> audio = new ArrayDeque<>();
+        private long lastSeen;
+        private long frameCounter;
+        private long audioCounter;
+
+        synchronized boolean isLive() {
+            return frame != null && System.currentTimeMillis() - lastSeen < STALE_MS;
+        }
+
+        synchronized void putFrame(byte[] jpeg) {
+            frame = new Frame(++frameCounter, jpeg);
+            lastSeen = System.currentTimeMillis();
+            notifyAll();
+        }
+
+        synchronized void putAudio(byte[] pcm) {
+            audio.addLast(new AudioChunk(++audioCounter, pcm));
+            while (audio.size() > AUDIO_HISTORY) audio.removeFirst();
+            lastSeen = System.currentTimeMillis();
+            notifyAll();
+        }
+
+        synchronized void ping() {
+            lastSeen = System.currentTimeMillis();
+        }
+
+        synchronized void end() {
+            frame = null;
+            audio.clear();
+            notifyAll();
+        }
+
+        synchronized Frame frameAfter(long sequence) {
+            return frame != null && frame.sequence() > sequence ? frame : null;
+        }
+
+        synchronized List<AudioChunk> audioAfter(long sequence) {
+            List<AudioChunk> out = new ArrayList<>();
+            if (sequence == 0 && !audio.isEmpty()) out.add(audio.peekLast());
+            else for (AudioChunk chunk : audio) if (chunk.sequence() > sequence) out.add(chunk);
+            return out;
+        }
+
+        synchronized void await(long millis) throws InterruptedException {
+            wait(millis);
+        }
+    }
+
+    private static final Map<String, Channel> channels = new ConcurrentHashMap<>();
     private static final Properties claims = new Properties();
-    private static final Object update = new Object();
 
     public static void main(String[] args) throws IOException {
         int port = args.length > 0 ? Integer.parseInt(args[0]) : DEFAULT_PORT;
@@ -49,6 +108,9 @@ public class BlackyTVRelay {
 
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
+        server.createContext("/claim/", BlackyTVRelay::handleClaim);
+        server.createContext("/live/", BlackyTVRelay::handleLive);
+        server.createContext("/watch/", BlackyTVRelay::handleWatch);
         server.createContext("/push/", BlackyTVRelay::handlePush);
         server.createContext("/frame/", BlackyTVRelay::handleFrame);
         server.createContext("/audio/", exchange -> {
@@ -59,41 +121,141 @@ public class BlackyTVRelay {
         System.out.println("BlackyTV Relay laeuft auf Port " + port + " (" + claims.size() + " Kanaele vergeben)");
     }
 
-    private static void handlePush(HttpExchange exchange) throws IOException {
+    private static Channel channelFor(String name) {
+        return channels.computeIfAbsent(name, n -> new Channel());
+    }
+
+    private static void handleClaim(HttpExchange exchange) throws IOException {
         try (exchange) {
-            String channel = channel(exchange, "/push/");
-            if (channel == null) {
+            String channel = channel(exchange, "/claim/");
+            if (channel == null) exchange.sendResponseHeaders(400, -1);
+            else exchange.sendResponseHeaders(authorized(exchange, channel) ? 204 : 403, -1);
+        }
+    }
+
+    private static void handleLive(HttpExchange exchange) throws IOException {
+        try (exchange) {
+            String name = channel(exchange, "/live/");
+            if (name == null) {
                 exchange.sendResponseHeaders(400, -1);
                 return;
             }
-            if (!authorized(exchange, channel)) {
+            if (!authorized(exchange, name)) {
+                exchange.sendResponseHeaders(403, -1);
+                return;
+            }
+            Channel channel = channelFor(name);
+            System.out.println("Kanal " + name + " sendet");
+            try (DataInputStream in = new DataInputStream(new BufferedInputStream(exchange.getRequestBody()))) {
+                while (true) {
+                    byte type = in.readByte();
+                    int length = in.readInt();
+                    if (length < 0 || length > MAX_BODY_BYTES) break;
+                    byte[] payload = in.readNBytes(length);
+                    if (payload.length < length) break;
+                    switch (type) {
+                        case TYPE_VIDEO -> channel.putFrame(payload);
+                        case TYPE_AUDIO -> channel.putAudio(payload);
+                        default -> channel.ping();
+                    }
+                }
+            } catch (EOFException ignored) {
+            } catch (IOException e) {
+                System.out.println("Kanal " + name + " Verbindung weg: " + e.getMessage());
+            } finally {
+                channel.end();
+                System.out.println("Kanal " + name + " aus");
+            }
+            exchange.sendResponseHeaders(204, -1);
+        }
+    }
+
+    private static void handleWatch(HttpExchange exchange) throws IOException {
+        try (exchange) {
+            String name = channel(exchange, "/watch/");
+            if (name == null) {
+                exchange.sendResponseHeaders(400, -1);
+                return;
+            }
+            Channel channel = channels.get(name);
+            if (channel == null || !channel.isLive()) {
+                exchange.sendResponseHeaders(404, -1);
+                return;
+            }
+            exchange.getResponseHeaders().set("Content-Type", "application/octet-stream");
+            exchange.sendResponseHeaders(200, 0);
+            DataOutputStream out = new DataOutputStream(new BufferedOutputStream(exchange.getResponseBody(), 64 * 1024));
+            long videoSeq = 0, audioSeq = 0, lastWrite = System.currentTimeMillis();
+            try {
+                while (channel.isLive()) {
+                    boolean wrote = false;
+                    for (AudioChunk chunk : channel.audioAfter(audioSeq)) {
+                        write(out, TYPE_AUDIO, chunk.pcm());
+                        audioSeq = chunk.sequence();
+                        wrote = true;
+                    }
+                    Frame frame = channel.frameAfter(videoSeq);
+                    if (frame != null) {
+                        write(out, TYPE_VIDEO, frame.jpeg());
+                        videoSeq = frame.sequence();
+                        wrote = true;
+                    }
+                    long now = System.currentTimeMillis();
+                    if (!wrote && now - lastWrite >= PING_INTERVAL_MS) {
+                        write(out, TYPE_PING, new byte[0]);
+                        wrote = true;
+                    }
+                    if (wrote) {
+                        out.flush();
+                        lastWrite = now;
+                    } else {
+                        channel.await(1000);
+                    }
+                }
+            } catch (IOException | InterruptedException ignored) {
+            }
+        }
+    }
+
+    private static void write(DataOutputStream out, byte type, byte[] payload) throws IOException {
+        out.writeByte(type);
+        out.writeInt(payload.length);
+        out.write(payload);
+    }
+
+    private static void handlePush(HttpExchange exchange) throws IOException {
+        try (exchange) {
+            String name = channel(exchange, "/push/");
+            if (name == null) {
+                exchange.sendResponseHeaders(400, -1);
+                return;
+            }
+            if (!authorized(exchange, name)) {
                 exchange.sendResponseHeaders(403, -1);
                 return;
             }
             if (exchange.getRequestMethod().equals("DELETE")) {
-                frames.remove(channel);
-                audio.remove(channel);
+                channelFor(name).end();
             } else {
                 byte[] jpeg = readBody(exchange);
                 if (jpeg == null) {
                     exchange.sendResponseHeaders(413, -1);
                     return;
                 }
-                frames.compute(channel, (c, old) -> new Frame(old == null ? 1 : old.sequence() + 1, jpeg, System.currentTimeMillis()));
+                channelFor(name).putFrame(jpeg);
             }
-            notifyWaiting();
             exchange.sendResponseHeaders(204, -1);
         }
     }
 
     private static void handleAudioPush(HttpExchange exchange) throws IOException {
         try (exchange) {
-            String channel = channel(exchange, "/audio/");
-            if (channel == null) {
+            String name = channel(exchange, "/audio/");
+            if (name == null) {
                 exchange.sendResponseHeaders(400, -1);
                 return;
             }
-            if (!authorized(exchange, channel)) {
+            if (!authorized(exchange, name)) {
                 exchange.sendResponseHeaders(403, -1);
                 return;
             }
@@ -102,42 +264,33 @@ public class BlackyTVRelay {
                 exchange.sendResponseHeaders(413, -1);
                 return;
             }
-            Deque<AudioChunk> chunks = audio.computeIfAbsent(channel, c -> new ArrayDeque<>());
-            synchronized (chunks) {
-                chunks.addLast(new AudioChunk(chunks.isEmpty() ? 1 : chunks.peekLast().sequence() + 1, pcm));
-                while (chunks.size() > AUDIO_HISTORY) chunks.removeFirst();
-            }
-            notifyWaiting();
+            channelFor(name).putAudio(pcm);
             exchange.sendResponseHeaders(204, -1);
         }
     }
 
     private static void handleFrame(HttpExchange exchange) throws IOException {
         try (exchange) {
-            String channel = channel(exchange, "/frame/");
-            if (channel == null) {
+            String name = channel(exchange, "/frame/");
+            if (name == null) {
                 exchange.sendResponseHeaders(400, -1);
                 return;
             }
+            Channel channel = channels.get(name);
             long after = after(exchange);
             long deadline = System.currentTimeMillis() + POLL_TIMEOUT_MS;
             while (true) {
-                Frame frame = frames.get(channel);
-                if (frame != null && System.currentTimeMillis() - frame.receivedAt() > STALE_MS) {
-                    frames.remove(channel, frame);
-                    audio.remove(channel);
-                    frame = null;
-                }
-                if (frame == null) {
+                if (channel == null || !channel.isLive()) {
                     exchange.sendResponseHeaders(404, -1);
                     return;
                 }
-                if (frame.sequence() > after) {
+                Frame frame = channel.frameAfter(after);
+                if (frame != null) {
                     exchange.getResponseHeaders().set("Content-Type", "image/jpeg");
                     send(exchange, frame.sequence(), frame.jpeg());
                     return;
                 }
-                if (!waitForUpdate(deadline)) {
+                if (!waitFor(channel, deadline)) {
                     exchange.sendResponseHeaders(204, -1);
                     return;
                 }
@@ -147,40 +300,43 @@ public class BlackyTVRelay {
 
     private static void handleAudioPoll(HttpExchange exchange) throws IOException {
         try (exchange) {
-            String channel = channel(exchange, "/audio/");
-            if (channel == null) {
+            String name = channel(exchange, "/audio/");
+            if (name == null) {
                 exchange.sendResponseHeaders(400, -1);
                 return;
             }
+            Channel channel = channels.get(name);
             long after = after(exchange);
             long deadline = System.currentTimeMillis() + POLL_TIMEOUT_MS;
             while (true) {
-                if (!frames.containsKey(channel)) {
+                if (channel == null || !channel.isLive()) {
                     exchange.sendResponseHeaders(404, -1);
                     return;
                 }
-                Deque<AudioChunk> chunks = audio.get(channel);
-                if (chunks != null) {
+                List<AudioChunk> chunks = channel.audioAfter(after);
+                if (!chunks.isEmpty()) {
                     ByteArrayOutputStream out = new ByteArrayOutputStream();
-                    long last = after;
-                    synchronized (chunks) {
-                        Iterable<AudioChunk> pending = after == 0 && !chunks.isEmpty() ? List.of(chunks.peekLast()) : chunks;
-                        for (AudioChunk chunk : pending) {
-                            if (chunk.sequence() <= after) continue;
-                            out.writeBytes(chunk.pcm());
-                            last = chunk.sequence();
-                        }
-                    }
-                    if (out.size() > 0) {
-                        send(exchange, last, out.toByteArray());
-                        return;
-                    }
+                    for (AudioChunk chunk : chunks) out.writeBytes(chunk.pcm());
+                    send(exchange, chunks.get(chunks.size() - 1).sequence(), out.toByteArray());
+                    return;
                 }
-                if (!waitForUpdate(deadline)) {
+                if (!waitFor(channel, deadline)) {
                     exchange.sendResponseHeaders(204, -1);
                     return;
                 }
             }
+        }
+    }
+
+    private static boolean waitFor(Channel channel, long deadline) {
+        long left = deadline - System.currentTimeMillis();
+        if (left <= 0) return false;
+        try {
+            channel.await(Math.min(left, 1000));
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
         }
     }
 
@@ -240,26 +396,6 @@ public class BlackyTVRelay {
         exchange.getResponseHeaders().set("X-Seq", String.valueOf(sequence));
         exchange.sendResponseHeaders(200, body.length);
         exchange.getResponseBody().write(body);
-    }
-
-    private static void notifyWaiting() {
-        synchronized (update) {
-            update.notifyAll();
-        }
-    }
-
-    private static boolean waitForUpdate(long deadline) {
-        long left = deadline - System.currentTimeMillis();
-        if (left <= 0) return false;
-        synchronized (update) {
-            try {
-                update.wait(Math.min(left, 1000));
-                return true;
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return false;
-            }
-        }
     }
 
     private static String sha256(String text) {

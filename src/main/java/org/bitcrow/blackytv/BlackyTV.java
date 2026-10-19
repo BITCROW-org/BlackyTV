@@ -5,6 +5,7 @@ import org.bitcrow.blackytv.capture.AudioCapture;
 import org.bitcrow.blackytv.capture.ScreenCapture;
 import org.bitcrow.blackytv.command.BlackyTvCommand;
 import org.bitcrow.blackytv.config.Settings;
+import org.bitcrow.blackytv.control.ControlScreen;
 import org.bitcrow.blackytv.gui.TvScreen;
 import org.bitcrow.blackytv.tv.TvRenderer;
 import org.bitcrow.blackytv.tv.TvTracker;
@@ -34,9 +35,12 @@ public class BlackyTV implements ClientModInitializer {
         KeyMapping.Category category = KeyMapping.Category.register(id("main"));
         KeyMapping menuKey = KeyMappingHelper.registerKeyMapping(
                 new KeyMapping("key.blackytv.menu", InputConstants.Type.KEYSYM, InputConstants.KEY_N, category));
+        KeyMapping controlKey = KeyMappingHelper.registerKeyMapping(
+                new KeyMapping("key.blackytv.control", InputConstants.Type.KEYSYM, InputConstants.KEY_G, category));
 
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
             while (menuKey.consumeClick()) mc.setScreenAndShow(new TvScreen());
+            while (controlKey.consumeClick()) ControlScreen.open(mc);
             TvTracker.tick(mc);
         });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> BlackyTvCommand.register(dispatcher));

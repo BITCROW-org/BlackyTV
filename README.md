@@ -25,6 +25,7 @@
 - **Fernseher per Schild**, beliebige Größe bis 100×56 Blöcke, verschiebbar
 - **Ton mit Abstand**: je näher am Fernseher, desto lauter
 - **Läuft im Hintergrund weiter**, auch bei verdeckten oder minimierten Fenstern
+- **Fenster im Spiel steuern**: mit `G` klicken, scrollen und tippen, direkt über den Fernseher
 - **Einstellbar**: Qualität bis 1920 px, 5–60 FPS, Lautstärke bis 200 %
 - **4 Sprachen**: Deutsch, Englisch, Französisch, Spanisch
 
@@ -66,7 +67,7 @@ ch:kino
 
 Fertig. Alle mit einem `ch:kino`-Schild sehen jetzt deinen Stream. Ohne `ch:` zeigt ein Fernseher nur deinen eigenen PC, und zwar nur dir.
 
-➡️ Alles im Detail: [Fernseher aufstellen](ANLEITUNG.md#4-fernseher-aufstellen) · [Streamen](ANLEITUNG.md#5-streamen)
+➡️ Alles im Detail: [Fernseher aufstellen](ANLEITUNG.md#4-fernseher-aufstellen) · [Streamen](ANLEITUNG.md#5-streamen) · [Fenster steuern](ANLEITUNG.md#fenster-im-spiel-steuern)
 
 ---
 
@@ -92,6 +93,7 @@ Die Leinwand erscheint hinter dem Schild. So kannst du das Schild in einem Block
 | Relay einstellen | `/blackytv relay <host:port>` |
 | Senden starten | `/blackytv stream <kanal> <passwort>` |
 | Senden stoppen | `/blackytv stop` |
+| Fenster steuern | **`G`**, beenden mit `Esc` |
 | Lautstärke der Fernseher (für dich) | `/blackytv volume <0-200>` |
 | Lautstärke beim Streamen (für alle) | `/blackytv streamvolume <0-200>` |
 
@@ -111,6 +113,8 @@ java BlackyTVRelay.java [port]
 - Kein Start-Passwort: **Wer einen Kanal zuerst benutzt, legt dessen Passwort fest**
 - Gespeichert wird nur ein SHA-256-Hash in `blackytv-kanaele.properties`
 - Zuschauen braucht kein Passwort
+- Bild und Ton laufen über **eine offene Verbindung** pro Spieler, nicht über eine Anfrage pro Bild
+- Mod **1.1.0+** braucht den neuen Relay, der neue Relay kann aber auch noch 1.0.x
 
 Damit deine Spieler nichts einstellen müssen, trag deinen Relay in [`Settings.java`](src/main/java/org/bitcrow/blackytv/config/Settings.java) bei `DEFAULT_RELAY` ein und bau die Mod neu.
 
