@@ -55,6 +55,14 @@ public record TvGeometry(double centerX, double centerZ, double top, double vide
         return new Hit(u, v, distance, hx, hy, hz);
     }
 
+    public double distanceTo(double x, double y, double z) {
+        double along = (x - centerX) * rightX + (z - centerZ) * rightZ;
+        double depth = (x - centerX) * frontX + (z - centerZ) * frontZ;
+        double side = Math.max(0, Math.abs(along) - width / 2);
+        double vertical = y > top ? y - top : Math.max(0, (top - height) - y);
+        return Math.sqrt(side * side + vertical * vertical + depth * depth);
+    }
+
     public double[] pointAt(double u, double v) {
         double along = u * videoWidth - videoWidth / 2;
         return new double[]{centerX + rightX * along, videoTop - v * videoHeight, centerZ + rightZ * along};

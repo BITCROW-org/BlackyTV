@@ -83,6 +83,8 @@ Fertig. Alle mit einem `ch:kino`-Schild sehen jetzt deinen Stream. Ohne `ch:` ze
 | | `@host:port` anderer Relay | `@1.2.3.4:8765` |
 | | `off:rechts,hoch,vor` verschieben | `off:0,0,2` |
 
+**Lautsprecher** für große Räume: ein Schild mit `blackytv:speaker` und darunter `ch:kino`. Der Ton kommt dann auch von dort. → [Mehr dazu](ANLEITUNG.md#lautsprecher)
+
 Die Leinwand erscheint hinter dem Schild. So kannst du das Schild in einem Block verstecken. → [Mehr dazu](ANLEITUNG.md#verschieben-mit-off)
 
 ---

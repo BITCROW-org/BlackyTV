@@ -288,13 +288,25 @@ Passwort vergessen oder Kanal soll jemand anders kriegen:
 - **Monitor als Quelle** → alles, was am PC läuft, **außer Minecraft** (sonst gäb's ein Echo)
 
 Zuschauer hören den Ton:
-- **voll** bis 4 Blöcke Abstand vom Fernseher
+- **voll** bis 4 Blöcke Abstand von der **Leinwand**, gemessen zum nächsten Punkt der Leinwand. Bei großen Leinwänden ist es also egal, ob du vor der Mitte oder vor dem Rand stehst.
 - dann immer leiser, ab **32 Blöcken** gar nicht mehr
+- **Große Leinwand = größere Reichweite:** ab 16 Blöcken Breite wächst die Reichweite mit. Eine 32 Blöcke breite Leinwand ist voll bis 8 und still ab 64 Blöcken. Maximal das Dreifache (voll bis 12, still ab 96).
 - Der **Master-Regler** von Minecraft zählt mit
 - Dazu kommt deine eigene **Hören**-Einstellung: im N-Menü per Knopf (0 / 25 / 50 / 75 / 100 / 150 / 200 %) oder genau mit `/blackytv lautstaerke 80`. Gilt nur für dich, die anderen stellen ihre eigene ein.
 
 **Als Streamer** stellst du mit **Stream-Ton** ein, wie laut dein Ton rausgeht, z. B. wenn die App zu leise ist: im N-Menü per Knopf oder genau mit `/blackytv streamton 150`. Das hören dann **alle** so. Über 100 % wird lauter, bis es oben abgeschnitten wird, also nicht übertreiben, sonst klingt's kratzig.
-- Stehen mehrere Fernseher mit dem gleichen Kanal rum, zählt der nächste
+- Stehen mehrere Fernseher oder Lautsprecher mit dem gleichen Kanal rum, zählt der, der bei dir am lautesten ist
+
+### Lautsprecher
+Für große Kinos oder Hallen kannst du zusätzliche **Lautsprecher** aufstellen, also Schilder, die nur Ton machen:
+```
+blackytv:speaker
+ch:kino
+```
+- Der Ton kommt dann auch von dort, mit denselben Abständen (voll bis 4 Blöcke, ab 32 Blöcken still).
+- So viele, wie du willst: Es zählt immer der lauteste, also meistens der nächste Fernseher oder Lautsprecher.
+- Anderer Relay geht wie beim Fernseher: `@1.2.3.4` in eine eigene Zeile.
+- Das Schild kannst du wie beim Fernseher in einem Block verstecken.
 
 Deinen **eigenen** Stream hörst du nicht doppelt. Der wird bei dir stumm geschaltet, weil du den Ton ja eh direkt vom PC hörst.
 
