@@ -2,6 +2,7 @@ package org.bitcrow.blackytv.control;
 
 import org.bitcrow.blackytv.capture.CaptureSource;
 import org.bitcrow.blackytv.capture.ScreenCapture;
+import org.bitcrow.blackytv.config.Settings;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.HitResult;
@@ -22,7 +23,7 @@ public final class TapControl {
         lastSlot = slot;
 
         CaptureSource source = ScreenCapture.source();
-        if (ControlState.isActive() || source == null || !source.isWindow()) return;
+        if (!Settings.tapControl || ControlState.isActive() || source == null || !source.isWindow()) return;
         TvRaycast.Aim aim = TvRaycast.fromCrosshair(mc);
         if (aim == null || blockInFront(mc, aim.distance())) return;
 

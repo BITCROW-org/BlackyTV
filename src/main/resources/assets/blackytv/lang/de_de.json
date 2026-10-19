@@ -39,5 +39,7 @@
   "blackytv.control.no_window": "Steuern geht nur mit einem Fenster als Quelle (N drücken)",
   "blackytv.control.not_supported": "Steuern geht nur unter Windows",
   "blackytv.control.blocked": "Das Fenster nimmt keine Eingaben an (läuft es als Admin?)",
-  "blackytv.control.closed": "Fenster weg, Steuer-Modus beendet"
+  "blackytv.control.closed": "Fenster weg, Steuer-Modus beendet",
+  "blackytv.menu.tap.on": "Fadenkreuz-Klick: AN",
+  "blackytv.menu.tap.off": "Fadenkreuz-Klick: AUS"
 }

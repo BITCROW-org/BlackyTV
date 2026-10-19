@@ -22,6 +22,7 @@ public final class Settings {
     public static volatile int quality = 1280;
     public static volatile boolean keepAwake;
     public static volatile boolean showCursor = true;
+    public static volatile boolean tapControl = true;
     public static volatile int volume = 100;
     public static volatile int streamVolume = 100;
     public static volatile String relay = DEFAULT_RELAY;
@@ -43,6 +44,7 @@ public final class Settings {
         quality = number(p, "maxw", quality, 320, 1920);
         keepAwake = Boolean.parseBoolean(p.getProperty("awake", "false"));
         showCursor = Boolean.parseBoolean(p.getProperty("cursor", "true"));
+        tapControl = Boolean.parseBoolean(p.getProperty("tap", "true"));
         volume = number(p, "volume", volume, 0, 200);
         streamVolume = number(p, "sendVolume", streamVolume, 0, 200);
         relay = p.getProperty("relay", relay);
@@ -57,6 +59,7 @@ public final class Settings {
         p.setProperty("maxw", String.valueOf(quality));
         p.setProperty("awake", String.valueOf(keepAwake));
         p.setProperty("cursor", String.valueOf(showCursor));
+        p.setProperty("tap", String.valueOf(tapControl));
         p.setProperty("volume", String.valueOf(volume));
         p.setProperty("sendVolume", String.valueOf(streamVolume));
         p.setProperty("relay", relay);

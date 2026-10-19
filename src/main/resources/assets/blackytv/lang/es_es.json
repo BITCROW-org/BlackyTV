@@ -39,5 +39,7 @@
   "blackytv.control.no_window": "El control solo funciona con una ventana como fuente (pulsa N)",
   "blackytv.control.not_supported": "El control solo funciona en Windows",
   "blackytv.control.blocked": "La ventana ignora la entrada (¿se ejecuta como admin?)",
-  "blackytv.control.closed": "La ventana ya no está, modo control terminado"
+  "blackytv.control.closed": "La ventana ya no está, modo control terminado",
+  "blackytv.menu.tap.on": "Clic con la mira: SÍ",
+  "blackytv.menu.tap.off": "Clic con la mira: NO"
 }

@@ -232,6 +232,7 @@ Als Streamer kannst du dein Fenster direkt über den Fernseher bedienen: klicken
 - **Mausrad** scrollt im Fenster, die Hotbar bleibt dabei stehen.
 - Du kannst dabei normal herumlaufen. Ein Block, der zwischen dir und dem Fernseher steht, hat Vorrang.
 - Gilt nur für dich als Streamer: nur Fernseher mit **deiner** Quelle, und nur bei einem Fenster.
+- Stört das, z. B. weil du am Fernseher bauen willst: im N-Menü **Fadenkreuz-Klick** ausschalten. Der G-Modus geht weiterhin.
 
 **Steuer-Modus (`G`)** für alles andere, also Tippen, Ziehen und genaues Zielen mit dem Mauszeiger:
 
@@ -332,6 +333,7 @@ Liegt bei jedem Spieler in `.minecraft/config/blackytv.properties`:
 | `key` | letztes Passwort zum Senden |
 | `awake` | Fenster wach halten an/aus |
 | `cursor` | Zeiger im Stream an/aus |
+| `tap` | Fadenkreuz-Klick an/aus |
 | `maxw` | Qualität (Breite in Pixeln) |
 | `volume` | Lautstärke der Fernseher in % (Hören) |
 | `sendVolume` | Lautstärke beim Streamen in % (Stream-Ton) |

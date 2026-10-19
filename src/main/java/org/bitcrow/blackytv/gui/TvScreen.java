@@ -39,7 +39,7 @@ public class TvScreen extends Screen {
     @Override
     protected void init() {
         if (sources == null) sources = ScreenCapture.list();
-        perPage = Math.max(3, (height - TOP - 132) / ROW);
+        perPage = Math.max(3, (height - TOP - 156) / ROW);
         int pages = Math.max(1, (sources.size() + perPage - 1) / perPage);
         page = Math.min(page, pages - 1);
         int x = (width - WIDTH) / 2;
@@ -70,8 +70,12 @@ public class TvScreen extends Screen {
         CaptureSource current = ScreenCapture.source();
         addRenderableWidget(Button.builder(tr("menu.control"), b -> ControlScreen.open(minecraft))
                 .bounds(x, y, WIDTH / 2 - 2, 20).build()).active = current != null && current.isWindow();
+        Component tap = Settings.tapControl ? tr("menu.tap.on").withStyle(ChatFormatting.GREEN) : tr("menu.tap.off");
+        addRenderableWidget(button(tap, () -> Settings.tapControl = !Settings.tapControl, x + WIDTH / 2 + 2, y, WIDTH / 2 - 2));
+
+        y += 24;
         Component cursor = Settings.showCursor ? tr("menu.cursor.on").withStyle(ChatFormatting.GREEN) : tr("menu.cursor.off");
-        addRenderableWidget(button(cursor, () -> Settings.showCursor = !Settings.showCursor, x + WIDTH / 2 + 2, y, WIDTH / 2 - 2));
+        addRenderableWidget(button(cursor, () -> Settings.showCursor = !Settings.showCursor, x, y, WIDTH));
     }
 
     private void addSourceButtons(int x) {

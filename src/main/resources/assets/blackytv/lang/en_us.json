@@ -39,5 +39,7 @@
   "blackytv.control.no_window": "Control only works with a window as source (press N)",
   "blackytv.control.not_supported": "Controlling only works on Windows",
   "blackytv.control.blocked": "The window ignores input (running as admin?)",
-  "blackytv.control.closed": "Window gone, control mode ended"
+  "blackytv.control.closed": "Window gone, control mode ended",
+  "blackytv.menu.tap.on": "Crosshair clicks: ON",
+  "blackytv.menu.tap.off": "Crosshair clicks: OFF"
 }
