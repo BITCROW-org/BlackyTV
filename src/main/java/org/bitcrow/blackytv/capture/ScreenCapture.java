@@ -26,6 +26,8 @@ public final class ScreenCapture {
     private static final int SW_SHOW_NO_ACTIVATE = 4;
     private static final int HALFTONE = 4;
 
+    private static final Frame.Pool POOL = new Frame.Pool();
+
     private static volatile CaptureSource source;
     private static volatile Frame frame;
     private static volatile boolean wanted;
@@ -187,7 +189,8 @@ public final class ScreenCapture {
             else gdi32("StretchBlt", outDc, 0, 0, w, h, from, sx, sy, sw, sh, SRCCOPY);
             gdi32("GdiFlush");
 
-            int[] pixels = outPixels.getIntArray(0, w * h);
+            int[] pixels = POOL.take(w * h);
+            outPixels.read(0, pixels, 0, pixels.length);
             ControlState.Pointer pointer = ControlState.pointer();
             if (pointer != null && Settings.showCursor && StreamSender.isSending())
                 CursorOverlay.draw(pixels, w, h, pointer.u(), pointer.v());

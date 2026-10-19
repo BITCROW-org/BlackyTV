@@ -25,7 +25,7 @@
 - **Fernseher per Schild**, beliebige Größe bis 100×56 Blöcke, verschiebbar
 - **Ton mit Abstand**: je näher am Fernseher, desto lauter
 - **Läuft im Hintergrund weiter**, auch bei verdeckten oder minimierten Fenstern
-- **Fenster im Spiel steuern**: mit `G` klicken, scrollen und tippen, direkt über den Fernseher
+- **Fenster im Spiel steuern**: mit dem Fadenkreuz klicken und scrollen, mit `G` auch tippen und ziehen
 - **Einstellbar**: Qualität bis 1920 px, 5–60 FPS, Lautstärke bis 200 %
 - **4 Sprachen**: Deutsch, Englisch, Französisch, Spanisch
 

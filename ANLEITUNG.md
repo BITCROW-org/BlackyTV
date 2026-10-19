@@ -227,6 +227,14 @@ Bei normalen Programmen wie VLC oder Spielen brauchst du den Schalter meistens n
 ### Fenster im Spiel steuern
 Als Streamer kannst du dein Fenster direkt über den Fernseher bedienen: klicken, scrollen, ziehen und tippen, ohne Minecraft zu verlassen.
 
+**Schnell antippen, ohne Modus:** Einfach mit dem **Fadenkreuz** auf deinen Fernseher schauen.
+- **Linksklick, Rechtsklick, Mittelklick** klicken genau da, wo das Fadenkreuz hinzeigt.
+- **Mausrad** scrollt im Fenster, die Hotbar bleibt dabei stehen.
+- Du kannst dabei normal herumlaufen. Ein Block, der zwischen dir und dem Fernseher steht, hat Vorrang.
+- Gilt nur für dich als Streamer: nur Fernseher mit **deiner** Quelle, und nur bei einem Fenster.
+
+**Steuer-Modus (`G`)** für alles andere, also Tippen, Ziehen und genaues Zielen mit dem Mauszeiger:
+
 1. **`G`** drücken (oder im N-Menü **Fenster steuern**). Deine Figur bleibt stehen, und ein Mauszeiger erscheint.
 2. Mit der Maus auf den Fernseher zeigen. Ein **roter Punkt** zeigt, wo du gerade bist.
 3. **Linksklick, Rechtsklick, Mittelklick, Mausrad und Ziehen** gehen ans Fenster.

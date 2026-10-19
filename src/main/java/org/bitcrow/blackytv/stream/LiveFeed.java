@@ -4,6 +4,9 @@ import org.bitcrow.blackytv.capture.Frame;
 import org.bitcrow.blackytv.capture.Pcm;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReadParam;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
@@ -37,6 +40,9 @@ final class LiveFeed extends Thread {
     private volatile boolean stopped;
     private volatile long lastData;
     private SourceDataLine line;
+    private final ImageReader reader = ImageIO.getImageReadersByFormatName("jpeg").next();
+    private final Frame.Pool pool = new Frame.Pool();
+    private BufferedImage decoded;
 
     LiveFeed(String feed) {
         super("BlackyTV-Watch " + feed);
@@ -97,13 +103,17 @@ final class LiveFeed extends Thread {
     }
 
     private void video(byte[] jpeg) throws IOException {
-        BufferedImage image = ImageIO.read(new ByteArrayInputStream(jpeg));
-        if (image == null) return;
-        int w = image.getWidth(), h = image.getHeight();
-        if (image.getType() == BufferedImage.TYPE_3BYTE_BGR)
-            frame = Frame.fromBgrBytes(((DataBufferByte) image.getRaster().getDataBuffer()).getData(), w, h);
-        else
-            frame = Frame.fromArgb(image.getRGB(0, 0, w, h, null, 0, w), w, h);
+        try (ImageInputStream input = ImageIO.createImageInputStream(new ByteArrayInputStream(jpeg))) {
+            reader.setInput(input, true, true);
+            int w = reader.getWidth(0), h = reader.getHeight(0);
+            if (decoded == null || decoded.getWidth() != w || decoded.getHeight() != h)
+                decoded = new BufferedImage(w, h, BufferedImage.TYPE_3BYTE_BGR);
+            ImageReadParam param = reader.getDefaultReadParam();
+            param.setDestination(decoded);
+            reader.read(0, param);
+        }
+        byte[] bgr = ((DataBufferByte) decoded.getRaster().getDataBuffer()).getData();
+        frame = Frame.fromBgrBytes(bgr, decoded.getWidth(), decoded.getHeight(), pool.take(decoded.getWidth() * decoded.getHeight()));
     }
 
     private void audio(byte[] pcm) {
